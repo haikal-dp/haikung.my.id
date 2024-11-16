@@ -1,59 +1,45 @@
 require('./setting');
-const { express,session,bodyParser } = require('./module');
+const { express, session, path, bodyParser } = require('./module');
+const { secret, logVisitor } = require('./database/lib/fungsi');
 const app = express();
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // Menyimpan file yang diunggah ke folder 'uploads'
+const favicon = require('serve-favicon');
+app.use(favicon(path.join(__dirname, 'database', 'gambar', 'fav.ico')));
 
-// Konfigurasi middleware
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'public'));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-    secret: 'secret-key', // Ganti dengan kunci rahasia Anda
-    resave: false,
-    saveUninitialized: true,
-}));
+app.use(secret);
 
-// Halaman utama
+
+app.use(logVisitor);
 app.get('/', (req, res) => {
-    res.send(`
-        <h1>Home</h1>
-        <p>${req.session.username ? `Hello, ${req.session.username}` : 'You are not logged in.'}</p>
-        <a href="/login">Login</a>
-        <a href="/logout">Logout</a>
-    `);
+    res.render('index');
 });
 
-// Halaman login
-app.get('/login', (req, res) => {
-    res.send(`
-        <h1>Login</h1>
-        <form method="POST" action="/login">
-            <input type="text" name="username" placeholder="Username" required />
-            <button type="submit">Login</button>
-        </form>
-    `);
+// Rute untuk mengunggah file
+app.post('/upload', upload.single('file'), (req, res) => {
+    res.send('File berhasil diunggah!');
 });
 
-// Proses login
-app.post('/login', (req, res) => {
-    const { username } = req.body;
-
-    // Simulasi validasi pengguna
-    if (username) {
-        req.session.username = username; // Simpan username dalam session
-        return res.redirect('/');
-    }
-    res.redirect('/login');
+// Middleware untuk menangani kesalahan 404
+app.use((req, res, next) => {
+    res.status(404).send('404'); // Merender halaman 404
 });
 
-// Proses logout
-app.get('/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) {
-            return res.redirect('/');
-        }
-        res.redirect('/');
-    });
+// Middleware untuk menangani kesalahan 500
+app.use((err, req, res, next) => {
+    console.error(err.stack); // Mencetak stack error ke konsol
+    res.status(500).send('500'); // Merender halaman 500
 });
 
-// Jalankan server
+// Middleware untuk menangani kesalahan 403
+app.use((err, req, res, next) => {
+    console.error(err.stack); // Mencetak stack error ke konsol
+    res.status(403).send('403'); // Merender halaman 403
+});
+
 app.listen(global.port, () => {
     console.log(`Server is running on http://localhost:${global.port}`);
 });
